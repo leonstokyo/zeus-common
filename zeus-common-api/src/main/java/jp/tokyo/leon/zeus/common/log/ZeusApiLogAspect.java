@@ -15,6 +15,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -25,22 +26,17 @@ import java.util.Set;
 public class ZeusApiLogAspect {
 
     private final EnableLogResolver enableLogResolver;
-
     private Set<String> scannedPackage = new HashSet<>();
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @PostConstruct
     public void init() {
         scannedPackage = enableLogResolver.findClassesWithAnnotation(EnableZeusApiLog.class);
     }
 
-
     public ZeusApiLogAspect(EnableLogResolver enableLogResolver) {
         this.enableLogResolver = enableLogResolver;
     }
-
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
-
-
 
     @Pointcut("@within(org.springframework.web.bind.annotation.RestController)")
     public void controllerPointcut() {
@@ -50,36 +46,41 @@ public class ZeusApiLogAspect {
     public Object recordLog(ProceedingJoinPoint proceedingJoinPoint) throws Throwable {
         MethodSignature signature = (MethodSignature) proceedingJoinPoint.getSignature();
         Method method = signature.getMethod();
-        if (!scannedPackage.isEmpty() && !isPackageOrSubpackage(scannedPackage, method.getDeclaringClass().getName())) {
-            return null;
-        }
-
-        System.out.println(method.getDeclaringClass().getName());
-        ZeusApiLog annotation = method.getAnnotation(ZeusApiLog.class);
-        String description = "";
-        if (Objects.nonNull(annotation)) {
-            description = annotation.value();
-        }
-
-        ZeusApiLogEntity apiLog = new ZeusApiLogEntity();
 
         long start = System.currentTimeMillis();
         Object result = proceedingJoinPoint.proceed(proceedingJoinPoint.getArgs());
+
+        if (!scannedPackage.isEmpty() && !isPackageOrSubpackage(scannedPackage, method.getDeclaringClass().getName())) {
+            return result;
+        }
         long end = System.currentTimeMillis();
-
-        ServletRequestAttributes requestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        assert requestAttributes != null;
-        HttpServletRequest request = requestAttributes.getRequest();
-
-        String url = request.getRequestURL().toString();
-        apiLog.setSpendTime(end - start);
-        apiLog.setUri(request.getRequestURI());
-        apiLog.setUrl(url);
-        apiLog.setDescription(description);
-
+        ZeusApiLogEntity apiLog = getZeusApiLogEntity(method, end, start);
         logger.info("{}", apiLog);
-
         return result;
+    }
+
+    private static ZeusApiLogEntity getZeusApiLogEntity(Method method, long end, long start) {
+        ZeusApiLog annotation = method.getAnnotation(ZeusApiLog.class);
+        String description;
+        if (Objects.nonNull(annotation)) {
+            description = annotation.value();
+        } else {
+            description = "";
+        }
+
+        ZeusApiLogEntity apiLog = new ZeusApiLogEntity();
+        Optional<ServletRequestAttributes> requestAttributesOptional =
+                Optional.ofNullable((ServletRequestAttributes)RequestContextHolder.getRequestAttributes());
+
+        requestAttributesOptional.ifPresent(requestAttributes -> {
+            HttpServletRequest request = requestAttributes.getRequest();
+            String url = request.getRequestURL().toString();
+            apiLog.setSpendTime(end - start);
+            apiLog.setUri(request.getRequestURI());
+            apiLog.setUrl(url);
+            apiLog.setDescription(description);
+        });
+        return apiLog;
     }
 
     private boolean isPackageOrSubpackage(Set<String> packageSet, String packageName) {

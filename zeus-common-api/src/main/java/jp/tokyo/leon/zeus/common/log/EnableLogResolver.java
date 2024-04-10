@@ -39,21 +39,4 @@ public class EnableLogResolver {
         return annotatedClasses;
     }
 
-
-    public boolean shouldEnableLogging(EnableZeusApiLog enableLog, Class<?> targetClass) {
-        Set<String> basePackages = new HashSet<>(Arrays.asList(enableLog.basePackages()));
-
-        if (basePackages.isEmpty()) {
-            return true; // Enable logging for all components if no base packages specified
-        }
-
-        String className = targetClass.getName();
-        for (String basePackage : basePackages) {
-            if (className.startsWith(basePackage)) {
-                return true; // Enable logging for components within specified base packages
-            }
-        }
-
-        return false;
-    }
 }
