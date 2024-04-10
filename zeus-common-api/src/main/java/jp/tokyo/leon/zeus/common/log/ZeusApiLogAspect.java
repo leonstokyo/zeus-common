@@ -1,7 +1,7 @@
 package jp.tokyo.leon.zeus.common.log;
 
 import jakarta.annotation.PostConstruct;
-import jakarta.servlet.http.HttpServletRequest;
+import jp.tokyo.leon.zeus.common.log.request.RequestInfoProvider;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -9,13 +9,10 @@ import org.aspectj.lang.annotation.Pointcut;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -26,6 +23,9 @@ import java.util.Set;
 public class ZeusApiLogAspect {
 
     private final EnableLogResolver enableLogResolver;
+
+    private final RequestInfoProvider requestInfoProvider;
+
     private Set<String> scannedPackage = new HashSet<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -34,8 +34,9 @@ public class ZeusApiLogAspect {
         scannedPackage = enableLogResolver.findClassesWithAnnotation(EnableZeusApiLog.class);
     }
 
-    public ZeusApiLogAspect(EnableLogResolver enableLogResolver) {
+    public ZeusApiLogAspect(EnableLogResolver enableLogResolver, RequestInfoProvider requestInfoProvider) {
         this.enableLogResolver = enableLogResolver;
+        this.requestInfoProvider = requestInfoProvider;
     }
 
     @Pointcut("@within(org.springframework.web.bind.annotation.RestController)")
@@ -59,27 +60,18 @@ public class ZeusApiLogAspect {
         return result;
     }
 
-    private static ZeusApiLogEntity getZeusApiLogEntity(Method method, long end, long start) {
+    private ZeusApiLogEntity getZeusApiLogEntity(Method method, long end, long start) {
         ZeusApiLog annotation = method.getAnnotation(ZeusApiLog.class);
-        String description;
+        String description = "";
         if (Objects.nonNull(annotation)) {
             description = annotation.value();
-        } else {
-            description = "";
         }
 
         ZeusApiLogEntity apiLog = new ZeusApiLogEntity();
-        Optional<ServletRequestAttributes> requestAttributesOptional =
-                Optional.ofNullable((ServletRequestAttributes)RequestContextHolder.getRequestAttributes());
-
-        requestAttributesOptional.ifPresent(requestAttributes -> {
-            HttpServletRequest request = requestAttributes.getRequest();
-            String url = request.getRequestURL().toString();
-            apiLog.setSpendTime(end - start);
-            apiLog.setUri(request.getRequestURI());
-            apiLog.setUrl(url);
-            apiLog.setDescription(description);
-        });
+        apiLog.setSpendTime(end - start);
+        apiLog.setUri(requestInfoProvider.getRequestUri());
+        apiLog.setUrl(requestInfoProvider.getRequestUrl());
+        apiLog.setDescription(description);
         return apiLog;
     }
 
