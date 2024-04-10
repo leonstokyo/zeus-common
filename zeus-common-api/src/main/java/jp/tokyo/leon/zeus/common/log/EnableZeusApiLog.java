@@ -2,6 +2,7 @@ package jp.tokyo.leon.zeus.common.log;
 
 import org.springframework.boot.logging.LogLevel;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.annotation.AliasFor;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -14,8 +15,11 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@Import(ZeusApiLogAspect.class)
+@Import({ZeusApiLogConfiguration.class})
 public @interface EnableZeusApiLog {
+
+    @AliasFor("basePackages")
+    String[] value() default {};
     /**
      * Specifies the base packages to scan for components to apply logging.
      * If not specified, logging will be applied to all components in the application.
