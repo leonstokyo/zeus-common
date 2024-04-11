@@ -2,8 +2,8 @@ package jp.tokyo.leon.zeus.common.log;
 
  import jp.tokyo.leon.zeus.common.log.request.DefaultRequestInfoProvider;
 import jp.tokyo.leon.zeus.common.log.request.RequestInfoProvider;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.context.annotation.Bean;
+ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
@@ -19,7 +19,7 @@ public class ZeusApiLogConfiguration {
     }
 
     @Bean
-    //@ConditionalOnBean(ServletHttpHandlerAdapter.class)
+    @ConditionalOnClass(name = "org.springframework.web.servlet.DispatcherServlet")
     public RequestInfoProvider requestInfoProvider() {
         return new DefaultRequestInfoProvider();
     }

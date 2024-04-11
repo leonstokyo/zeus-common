@@ -39,7 +39,7 @@ public class ZeusApiLogAspect {
         this.requestInfoProvider = requestInfoProvider;
     }
 
-    @Pointcut("@within(org.springframework.web.bind.annotation.RestController)")
+    @Pointcut("@within(org.springframework.web.bind.annotation.RestController) || @within(org.springframework.stereotype.Controller)")
     public void controllerPointcut() {
     }
 
